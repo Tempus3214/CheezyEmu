@@ -1273,8 +1273,17 @@ private:
     };
     /// Reads of a page's writes in a row before its writes get early downloads.
     static constexpr u16 EarlyAfterReads = 2;
-    /// Writes in a row without a read that stop them.
-    static constexpr u16 MaxUnreadWrites = 4;
+    /// Writes in a row without a read that stop them. Ocarina of Time reads some pages once every
+    /// ~50 GPU writes: at 4 they never got early downloads and each read waited ~7 ms for a copy
+    /// queued behind a frame of later work. EDEN_NX2_EARLY_UNREAD_WRITES=<n> sets it (4 before).
+    static u16 MaxUnreadWrites() {
+        static const u16 value = [] {
+            const char* value = std::getenv("EDEN_NX2_EARLY_UNREAD_WRITES");
+            const unsigned long parsed = value != nullptr ? std::strtoul(value, nullptr, 10) : 64;
+            return static_cast<u16>(std::clamp<unsigned long>(parsed, 1, 1024));
+        }();
+        return value;
+    }
     static constexpr size_t MaxReadBackPages = 64;
     /// Early download bytes a frame, and early downloads not yet in guest memory: past them, reads
     /// flush on demand.

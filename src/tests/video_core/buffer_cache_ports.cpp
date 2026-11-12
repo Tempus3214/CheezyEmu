@@ -275,6 +275,10 @@ using KeepCache = VideoCommon::BufferCache<KeepPolicy>;
 namespace VideoCommon {
 
 struct BufferCacheTestAccess {
+    static u32 MaxUnreadWrites() {
+        return Cache::MaxUnreadWrites();
+    }
+
     static Binding Bind(Cache& cache, Tegra::MemoryManager& memory, GPUVAddr descriptor,
                         bool written = false, bool native = false, bool table = false,
                         bool compute = false) {
@@ -1629,14 +1633,16 @@ TEST_CASE("Early downloads keep CPU writes, and stop for pages no longer read", 
     REQUIRE(f.bytes[0x10030] == 3);
     // Not read any more: a few more writes get early downloads, then none.
     const u32 queued = f.runtime.queued_host_reads;
-    for (u8 frame = 4; frame < 12; ++frame) {
-        WriteByDispatch(f, id, 0x20000, 0x100, frame);
+    const u32 limit = Access::MaxUnreadWrites();
+    const u32 last = 4 + limit + 3;
+    for (u32 frame = 4; frame <= last; ++frame) {
+        WriteByDispatch(f, id, 0x20000, 0x100, static_cast<u8>(frame));
         f.runtime.Complete(f.runtime.submitted_tick);
     }
-    REQUIRE(f.runtime.queued_host_reads - queued == 4);
+    REQUIRE(f.runtime.queued_host_reads - queued == limit);
     const auto area = ReadWord(f, 0x20010);
     REQUIRE_FALSE(area.preemtive);
-    REQUIRE(f.bytes[0x10010] == 11);
+    REQUIRE(f.bytes[0x10010] == static_cast<u8>(last));
     REQUIRE(Access::ReadDownloads(*f.cache) == 0);
     REQUIRE_FALSE(Access::Pending(*f.cache, 0x20000, 0x1000));
 }

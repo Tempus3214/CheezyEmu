@@ -1112,7 +1112,7 @@ void BufferCache<P>::NoteReadBackWrite(DAddr device_addr, u64 size) {
              it != read_back_pages.end() && it->page < end; ++it) {
             it->written = true;
             it->landed_early = false;
-            if (it->unread_writes < MaxUnreadWrites) {
+            if (it->unread_writes < MaxUnreadWrites()) {
                 ++it->unread_writes;
             } else {
                 // The guest no longer reads it after its writes.
